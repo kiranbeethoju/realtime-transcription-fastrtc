@@ -47,14 +47,41 @@
             padding: 0 2rem;
         }
 
+        .transcript-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
         .transcript-container {
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             padding: 1.5rem;
             height: 300px;
             overflow-y: auto;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
             border: 1px solid rgba(0, 0, 0, 0.1);
+            position: relative;
+            background: white;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+            z-index: 2;
+        }
+
+        .copy-button:hover {
+            opacity: 1;
         }
 
         .controls {
@@ -92,6 +119,20 @@
             border-radius: 4px;
             line-height: 1.4;
             font-size: 0.95rem;
+            min-height: 1em;
+            outline: none;
+            transition: background-color 0.2s ease;
+        }
+
+        .transcript-container p:focus {
+            background: white;
+            box-shadow: 0 0 0 2px rgba(249, 164, 92, 0.2);
+        }
+
+        .transcript-container p:empty::before {
+            content: 'Start speaking or type here...';
+            color: #999;
+            font-style: italic;
         }
 
         /* Custom scrollbar - made thinner */
@@ -138,6 +179,11 @@
             color: black;
         }
 
+        .toast.success {
+            background-color: #4CAF50;
+            color: white;
+        }
+
         /* Add styles for audio visualization */
         .icon-with-spinner {
             display: flex;
@@ -176,6 +222,28 @@
             transition: transform 0.1s ease;
         }
 
+        /* Voice waves animation */
+        .voice-waves {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            height: 60px;
+            z-index: 1;
+        }
+
+        .wave {
+            width: 6px;
+            background: linear-gradient(45deg, #f9a45c, #e66465);
+            border-radius: 6px;
+            transition: height 0.2s ease;
+            opacity: 0.8;
+        }
+
         @keyframes spin {
             to {
                 transform: rotate(360deg);
@@ -193,7 +261,22 @@
     </div>
 
     <div class="container">
-        <div class="transcript-container" id="transcript"></div>
+        <div class="transcript-wrapper">
+            <div class="transcript-container" id="transcript" role="textbox" aria-label="Transcript"></div>
+            <button class="copy-button" id="copy-button">Copy Text</button>
+            <div class="voice-waves" id="voice-waves">
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+                <div class="wave"></div>
+            </div>
+        </div>
         <div class="controls">
             <button id="start-button">Start Recording</button>
         </div>
@@ -250,6 +333,36 @@
             }
         }
 
+        function showToast(message, type = 'error') {
+            const toast = document.getElementById('error-toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Copy button functionality
+        document.getElementById('copy-button').addEventListener('click', () => {
+            const text = document.getElementById('transcript').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Text copied to clipboard!', 'success');
+            }).catch(err => {
+                showToast('Failed to copy text', 'error');
+            });
+        });
+
+        // Voice waves animation
+        function updateWaves(audioLevel) {
+            const waves = document.querySelectorAll('.wave');
+            waves.forEach((wave, index) => {
+                const height = Math.max(8, (audioLevel * 60) * Math.random());
+                wave.style.height = `${height}px`;
+            });
+        }
+
         function setupAudioVisualization(stream) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
@@ -267,6 +380,9 @@
                 if (pulseCircle) {
                     pulseCircle.style.setProperty('--audio-level', 1 + audioLevel);
                 }
+
+                // Update voice waves
+                updateWaves(audioLevel);
 
                 animationFrame = requestAnimationFrame(updateAudioLevel);
             }
@@ -374,6 +490,7 @@
 
         function appendTranscript(text) {
             const p = document.createElement('p');
+            p.contentEditable = true;
             p.textContent = text;
             transcriptDiv.appendChild(p);
             transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
